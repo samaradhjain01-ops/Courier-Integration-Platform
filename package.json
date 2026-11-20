@@ -11,10 +11,11 @@
     "url": "git+https://github.com/samaradhjain01-ops/Courier-Integration-Platform.git"
   },
   "keywords": [],
-  "author": "",
+  "author": "Samaradh",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/samaradhjain01-ops/Courier-Integration-Platform/issues"
   },
-  "homepage": "https://github.com/samaradhjain01-ops/Courier-Integration-Platform#readme"
+  "homepage": "https://github.com/samaradhjain01-ops/Courier-Integration-Platform#readme",
+  "private": "true"
 }
