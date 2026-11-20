@@ -1,0 +1,59 @@
+{
+  "info": {
+    "name": "Courier Integration Platform",
+    "description": "Unified courier API examples",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000/api/v1" },
+    { "key": "orderId", "value": "ORDER-1001" },
+    { "key": "batchId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "request": { "method": "GET", "url": "{{baseUrl}}/health" }
+    },
+    {
+      "name": "Supported couriers",
+      "request": { "method": "GET", "url": "{{baseUrl}}/couriers" }
+    },
+    {
+      "name": "Create order",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"orderId\": \"ORDER-1001\",\n  \"courierPartner\": \"mock\",\n  \"customer\": { \"name\": \"Amit Kumar\", \"phone\": \"9876543210\" },\n  \"pickup\": { \"name\": \"Warehouse\", \"phone\": \"9876543210\", \"address\": \"MG Road\", \"city\": \"Indore\", \"state\": \"Madhya Pradesh\", \"pincode\": \"452001\" },\n  \"delivery\": { \"name\": \"Ravi Sharma\", \"phone\": \"9876501234\", \"address\": \"Vijay Nagar\", \"city\": \"Indore\", \"state\": \"Madhya Pradesh\", \"pincode\": \"452010\" },\n  \"package\": { \"weightKg\": 1.2, \"description\": \"Books\" },\n  \"paymentMode\": \"PREPAID\"\n}"
+        },
+        "url": "{{baseUrl}}/orders"
+      }
+    },
+    {
+      "name": "Get order",
+      "request": { "method": "GET", "url": "{{baseUrl}}/orders/{{orderId}}" }
+    },
+    {
+      "name": "Track order",
+      "request": { "method": "GET", "url": "{{baseUrl}}/orders/{{orderId}}/track" }
+    },
+    {
+      "name": "Cancel order",
+      "request": { "method": "POST", "url": "{{baseUrl}}/orders/{{orderId}}/cancel" }
+    },
+    {
+      "name": "Bulk create",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"orders\": []\n}" },
+        "url": "{{baseUrl}}/orders/bulk"
+      }
+    },
+    {
+      "name": "Get batch",
+      "request": { "method": "GET", "url": "{{baseUrl}}/batches/{{batchId}}" }
+    }
+  ]
+}
