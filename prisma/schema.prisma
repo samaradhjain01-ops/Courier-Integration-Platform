@@ -13,8 +13,9 @@ model Order {
   courierPartner    String
   courierOrderId    String?
   awb               String?
-  status            String          @default("CREATED")
+  status            String          @default("CREATING")
   requestPayload    String
+  normalizedRequestPayload String?
   responsePayload   String?
   lastErrorCode     String?
   lastErrorMessage  String?
@@ -52,6 +53,7 @@ model BulkBatchItem {
   error       String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+  processingStartedAt DateTime?
   batch       BulkBatch @relation(fields: [batchId], references: [id])
   @@unique([batchId, orderId])
   @@index([status, createdAt])

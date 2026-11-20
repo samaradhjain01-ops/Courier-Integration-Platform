@@ -10,63 +10,65 @@ let running = false;
 export async function processPendingJobs(): Promise<void> {
   if (running) return;
   running = true;
-
   try {
+    const staleBefore = new Date(Date.now() - env.JOB_STALE_AFTER_MS);
+    await prisma.bulkBatchItem.updateMany({
+      where: { status: "PROCESSING", processingStartedAt: { lt: staleBefore } },
+      data: { status: "PENDING", processingStartedAt: null }
+    });
     const jobs = await prisma.bulkBatchItem.findMany({
       where: { status: "PENDING" },
       orderBy: { createdAt: "asc" },
-      take: 5
+      take: env.JOB_CONCURRENCY
     });
 
     await Promise.all(jobs.map(async job => {
       const claimed = await prisma.bulkBatchItem.updateMany({
         where: { id: job.id, status: "PENDING" },
-        data: { status: "PROCESSING", attempts: { increment: 1 } }
+        data: { status: "PROCESSING", processingStartedAt: new Date(), attempts: { increment: 1 } }
       });
       if (claimed.count === 0) return;
 
       try {
-        const itemData = await prisma.bulkBatchItem.findUniqueOrThrow({ where: { id: job.id } });
-        const batchOrders = await prisma.order.findMany({ where: { orderId: itemData.orderId } });
-
-        if (batchOrders.length) {
+        const order = orderSchema.parse(JSON.parse(job.payload));
+        const existing = await prisma.order.findUnique({ where: { orderId: job.orderId } });
+        if (existing) {
+          const alreadyCreated = !["FAILED", "CREATING"].includes(existing.status);
           await prisma.bulkBatchItem.update({
             where: { id: job.id },
-            data: { status: "COMPLETED", error: null }
+            data: {
+              status: alreadyCreated ? "COMPLETED" : "FAILED",
+              error: alreadyCreated ? null : `ORDER_NOT_REPLAYED: existing shipment is ${existing.status}`,
+              processingStartedAt: null
+            }
           });
           return;
         }
-
-        const storedPayload = await prisma.bulkBatchItem.findUnique({ where: { id: job.id } });
-        const payload = (storedPayload as any)?.payload;
-        if (!payload) {
-          throw new Error("Order payload is missing from the job record");
-        }
-        const order = orderSchema.parse(JSON.parse(payload));
-        await orderService.create(order);
+        await orderService.create(order, `batch:${job.batchId}`);
         await prisma.bulkBatchItem.update({
           where: { id: job.id },
-          data: { status: "COMPLETED", error: null }
+          data: { status: "COMPLETED", error: null, processingStartedAt: null }
         });
       } catch (error: any) {
-        const attempts = job.attempts + 1;
         await prisma.bulkBatchItem.update({
           where: { id: job.id },
           data: {
-            status: attempts < env.JOB_MAX_ATTEMPTS ? "PENDING" : "FAILED",
+            status: "FAILED",
+            processingStartedAt: null,
             error: error.message ?? "Order processing failed"
           }
         });
-        logger.error({ orderId: job.orderId, error }, "Bulk order processing failed");
+        logger.error({ order_id: job.orderId, courier_partner: (() => { try { return JSON.parse(job.payload).courierPartner; } catch { return "unknown"; } })(), request_id: `batch:${job.batchId}`, error_type: error.code ?? "BULK_PROCESSING_FAILED", err: error }, "Bulk order processing failed");
       }
     }));
+  } catch (error) {
+    logger.error({ err: error }, "Bulk worker iteration failed");
   } finally {
     running = false;
   }
 }
 
 export function startBulkWorker(): NodeJS.Timeout {
-  return setInterval(() => {
-    void processPendingJobs();
-  }, env.JOB_POLL_INTERVAL_MS);
+  void processPendingJobs();
+  return setInterval(() => { void processPendingJobs(); }, env.JOB_POLL_INTERVAL_MS);
 }

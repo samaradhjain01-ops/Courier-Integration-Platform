@@ -14,13 +14,17 @@ export class MockCourierAdapter implements CourierAdapter {
     this.authenticated = true;
   }
 
-  async createShipment(order: NormalizedOrder): Promise<ShipmentResult> {
+  buildCreatePayload(order: NormalizedOrder): unknown {
+    return { reference: order.orderId, deliveryPincode: order.delivery.pincode, weightKg: order.package.weightKg };
+  }
+
+  async createShipment(order: NormalizedOrder, _outboundPayload: unknown = this.buildCreatePayload(order)): Promise<ShipmentResult> {
     if (!this.authenticated) await this.authenticate();
 
     const raw = {
       reference: order.orderId,
       shipment_reference: randomUUID(),
-      tracking_number: `MOCK${Date.now()}`
+      tracking_number: `MOCK${randomUUID().replace(/-/g, "").slice(0, 16).toUpperCase()}`
     };
 
     return {
@@ -44,8 +48,8 @@ export class MockCourierAdapter implements CourierAdapter {
     };
   }
 
-  async cancelShipment(courierOrderId: string): Promise<{ cancelled: boolean; raw: unknown }> {
+  async cancelShipment(awb: string): Promise<{ cancelled: boolean; raw: unknown }> {
     if (!this.authenticated) await this.authenticate();
-    return { cancelled: true, raw: { shipment_reference: courierOrderId, status: "CANCELLED" } };
+    return { cancelled: true, raw: { awb, status: "CANCELLED" } };
   }
 }
